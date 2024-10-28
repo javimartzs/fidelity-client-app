@@ -2,10 +2,13 @@ package services
 
 import (
 	"errors"
+	"fidelity-client-app/config"
 	"fidelity-client-app/models"
 	"regexp"
+	"time"
 	"unicode"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -111,4 +114,28 @@ func (s *AuthService) LoginUser(email, password string) (*models.User, error) {
 	// Devolvemos los datos del usuario
 	return &user, nil
 
+}
+
+// GenerateJWT maneja la generacion de un Json Web Token del usuario cuando se logea
+func (s *AuthService) GenerateJWT(userID, email, role string) (string, error) {
+
+	// Definimos los claims del JWT
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"role":    role,
+		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		"iss":     "fidelity-client-app",
+	}
+
+	// Generamos un nuevo Json Web Token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	// Firmamos el Json Web Token generado
+	tokenString, err := token.SignedString([]byte(config.Vars.JwtKey))
+	if err != nil {
+		return "", errors.New("error al acceder")
+	}
+
+	return tokenString, nil
 }
