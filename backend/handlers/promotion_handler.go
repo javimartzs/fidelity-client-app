@@ -181,3 +181,78 @@ func (h *PromotionHandler) DeletePromotion(w http.ResponseWriter, r *http.Reques
 	// Enviamos una respuesta con código 204 para indicar que la promoción fue eliminada
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// GetActivePromotionsForUser maneja la obtención de promociones activas no consumidas por el usuario
+func (h *PromotionHandler) GetActivePromotionsForUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		http.Error(w, "user_id es obligatorio", http.StatusBadRequest)
+		return
+	}
+
+	promotions, err := h.PromotionService.GetActivePromotionsForUser(userID)
+	if err != nil {
+		http.Error(w, "Error al obtener promociones", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(promotions)
+}
+
+// ConsumePromotion maneja la solicitud de consumo de una promoción
+func (h *PromotionHandler) ConsumePromotion(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.URL.Query().Get("user_id")
+	promotionID := r.URL.Query().Get("promotion_id")
+	if userID == "" || promotionID == "" {
+		http.Error(w, "user_id y promotion_id son obligatorios", http.StatusBadRequest)
+		return
+	}
+
+	err := h.PromotionService.ConsumePromotion(userID, promotionID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Promoción consumida exitosamente",
+	})
+}
+
+// CheckPromotionAvailability maneja la solicitud para verificar si una promoción ya fue consumida
+func (h *PromotionHandler) CheckPromotionAvailability(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.URL.Query().Get("user_id")
+	promotionID := r.URL.Query().Get("promotion_id")
+	if userID == "" || promotionID == "" {
+		http.Error(w, "user_id y promotion_id son obligatorios", http.StatusBadRequest)
+		return
+	}
+
+	isConsumed, err := h.PromotionService.IsPromotionConsumed(userID, promotionID)
+	if err != nil {
+		http.Error(w, "Error al verificar la promoción", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]bool{
+		"is_consumed": isConsumed,
+	})
+}

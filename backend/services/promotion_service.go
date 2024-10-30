@@ -158,3 +158,69 @@ func (s *PromotionService) DeletePromotion(id string) error {
 	}
 	return nil
 }
+
+// GetActivePromotionsForUser obtiene las promociones activas que el usuario no ha consumido
+func (s *PromotionService) GetActivePromotionsForUser(userID string) ([]models.Promotion, error) {
+	var promotions []models.Promotion
+	currentDate := time.Now().Format(dateFormat)
+
+	var consumedPromotions []string
+	s.DB.Model(&models.PromotionUsage{}).Where("user_id = ?", userID).Pluck("promotion_id", &consumedPromotions)
+
+	if err := s.DB.Where("start_date <= ? AND (end_date IS NULL OR end_date >= ?)", currentDate, currentDate).
+		Where("id NOT IN ?", consumedPromotions).
+		Find(&promotions).Error; err != nil {
+		return nil, err
+	}
+	return promotions, nil
+}
+
+// ConsumePromotion permite a un usuario consumir una promoción si cumple con los requisitos
+func (s *PromotionService) ConsumePromotion(userID, promotionID string) error {
+	var promotion models.Promotion
+	if err := s.DB.First(&promotion, "id = ?", promotionID).Error; err != nil {
+		return errors.New("promoción no encontrada")
+	}
+
+	currentDate := time.Now().Format(dateFormat)
+	if promotion.StartDate > currentDate || (promotion.EndDate != "" && promotion.EndDate < currentDate) {
+		return errors.New("la promoción no está activa en este momento")
+	}
+
+	var user models.User
+	if err := s.DB.First(&user, "id = ?", userID).Error; err != nil {
+		return errors.New("usuario no encontrado")
+	}
+
+	if user.Level < promotion.LevelRequired {
+		return errors.New("el usuario no tiene el nivel necesario para consumir esta promoción")
+	}
+
+	var usage models.PromotionUsage
+	if err := s.DB.Where("user_id = ? AND promotion_id = ?", userID, promotionID).First(&usage).Error; err == nil {
+		return errors.New("esta promoción ya ha sido consumida por el usuario")
+	}
+
+	usage = models.PromotionUsage{
+		ID:          uuid.NewString(),
+		UserID:      userID,
+		PromotionID: promotionID,
+		ConsumedAt:  time.Now(),
+	}
+	if err := s.DB.Create(&usage).Error; err != nil {
+		return errors.New("error al registrar el consumo de la promoción")
+	}
+	return nil
+}
+
+// IsPromotionConsumed verifica si una promoción ha sido consumida por el usuario
+func (s *PromotionService) IsPromotionConsumed(userID, promotionID string) (bool, error) {
+	var usage models.PromotionUsage
+	if err := s.DB.Where("user_id = ? AND promotion_id = ?", userID, promotionID).First(&usage).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
