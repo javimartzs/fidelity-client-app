@@ -2,3 +2,5 @@
 .env
 ._*
 backend/bin
+backend/go.mod
+backend/go.sum
