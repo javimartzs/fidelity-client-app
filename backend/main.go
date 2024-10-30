@@ -19,10 +19,12 @@ func main() {
 	// Inicializar servicios
 	authService := services.AuthService{DB: DB}
 	promotionService := services.PromotionService{DB: DB}
+	pointsService := services.PointsService{DB: DB} // Servicio de puntos
 
 	// Inicializar handlers
 	authHandler := handlers.AuthHandler{AuthService: authService}
 	promotionHandler := handlers.PromotionHandler{PromotionService: &promotionService}
+	pointsHandler := handlers.PointsHandler{PointsService: &pointsService} // Handler de puntos
 
 	// Iniciar enrutador
 	mux := http.NewServeMux()
@@ -37,6 +39,9 @@ func main() {
 	mux.HandleFunc("/api/v1/promotions", promotionHandler.GetPromotionByID)           // GET: Obtener promoción por ID
 	mux.HandleFunc("/api/v1/promotions/update", promotionHandler.UpdatePromotion)     // PUT: Actualizar promoción
 	mux.HandleFunc("/api/v1/promotions/delete", promotionHandler.DeletePromotion)     // DELETE: Eliminar promoción
+
+	// Ruta para acumulación de puntos
+	mux.HandleFunc("/api/v1/accumulate_points", pointsHandler.AccumulatePoints)
 
 	http.ListenAndServe(":8080", mux)
 }
