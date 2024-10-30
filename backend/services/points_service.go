@@ -14,16 +14,10 @@ type PointsService struct {
 
 // CalculateLevel determina el nivel en funcion de los puntos totales del usuario
 func CalculateLevel(points int) int {
-	switch {
-	case points >= 300:
-		return 4
-	case points >= 200:
-		return 3
-	case points >= 100:
-		return 2
-	default:
-		return 1
-	}
+
+	// Calcular el nivel diviendo los puntos entre 100 y sumando 1
+	level := (points / 100) + 1
+	return level
 }
 
 // AccumulatePoints incrementa los puntos y actualiza el nivel del usuario
